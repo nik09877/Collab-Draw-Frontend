@@ -17,19 +17,12 @@ import {
 } from '../../socketConnection/socketConnection';
 import Menu from './components/Menu.component';
 
-//KEEPING THIS OUTSIDE OF MY COMPONENT AND NOT STORING IT AS STATE
-//BECAUSE I DON'T WANT MY COMPONENT TO RE RENDER WHEN IT'S VALUE CHANGES
-// let selectedElement;
-// const setSelectedElement = (el) => {
-//   selectedElement = el;
-// };
-
 const Whiteboard = () => {
   const [action, setAction] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
 
   const canvasRef = useRef();
-  // const textAreaRef = useRef();
+  const textAreaRef = useRef();
 
   const toolType = useSelector((state) => state.whiteboard.tool);
   const elements = useSelector((state) => state.whiteboard.elements);
@@ -58,9 +51,9 @@ const Whiteboard = () => {
     //GET MOUSE TOUCHDOWN POSITION
     const { clientX, clientY } = e;
 
-    // if (!selectedElement && action === actions.WRITING) {
-    //   return;
-    // }
+    if (selectedElement && action === actions.WRITING) {
+      return;
+    }
 
     //CREATE DESIRED ELEMENT
     const element = utilCreateElement({
@@ -146,26 +139,26 @@ const Whiteboard = () => {
     }
   };
 
-  // const handleTextAreaBlur = (event) => {
-  //   const { id, x1, y1, type } = selectedElement;
-  //   const index = elements.findIndex((el) => el.id === selectedElement.id);
-  //   if (index !== -1) {
-  //     utilUpdateElement(
-  //       { id, x1, y1, type, text: event.target.value },
-  //       elements
-  //     );
-  //   }
-  //   setAction(null);
-  //   setSelectedElement(null);
-  // };
+  const handleTextareaBlur = (event) => {
+    const { id, x1, y1, type } = selectedElement;
+    const index = elements.findIndex((el) => el.id === selectedElement.id);
+    if (index !== -1) {
+      utilUpdateElement(
+        { id, x1, y1, type, text: event.target.value, index },
+        elements
+      );
+      setAction(null);
+      setSelectedElement(null);
+    }
+  };
 
   return (
     <React.Fragment>
       <Menu />
-      {/*{action === actions.WRITING ? (
+      {action === actions.WRITING ? (
         <textarea
           ref={textAreaRef}
-          onBlur={handleTextAreaBlur}
+          onBlur={handleTextareaBlur}
           style={{
             position: 'absolute',
             top: selectedElement.y1 - 3,
@@ -181,7 +174,7 @@ const Whiteboard = () => {
             background: 'transparent',
           }}
         ></textarea>
-        ) : null}*/}
+      ) : null}
       <canvas
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}

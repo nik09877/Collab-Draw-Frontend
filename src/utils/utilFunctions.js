@@ -47,14 +47,14 @@ export const createElement = ({ x1, y1, x2, y2, toolType, id, text }) => {
         type: toolType,
         points: [{ x: x1, y: y1 }],
       };
-    // case toolTypes.TEXT:
-    //   return {
-    //     id,
-    //     type: toolType,
-    //     x1,
-    //     y1,
-    //     text: text || '',
-    //   };
+    case toolTypes.TEXT:
+      return {
+        id,
+        type: toolType,
+        x1,
+        y1,
+        text: text || '',
+      };
     default:
       throw new Error('Something went wrong when creating element');
   }
@@ -96,30 +96,32 @@ export const updateElement = (
       //TODO EMIT ONLY UPDATEDELEMENT IF DOESN'T WORK
       emitElementUpdate(elementsCopy);
       break;
-    // case toolTypes.TEXT:
-    //   const textWidth = document
-    //     .getElementById('canvas')
-    //     .getContext('2d')
-    //     .measureText(text).width;
-    //   const textHeight = 24;
-    //   elementsCopy[index] = {
-    //     ...createElement({
-    //       id,
-    //       x1,
-    //       y1,
-    //       x2: x1 + textWidth,
-    //       y2: y1 + textHeight,
-    //       toolType: type,
-    //       text,
-    //     }),
-    //   };
-    //   //TODO
-    //   // const updatedTextElement = elementsCopy[index];
-    //   store.dispatch(setElements(elementsCopy));
+    case toolTypes.TEXT:
+      const textWidth = document
+        .getElementById('canvas')
+        .getContext('2d')
+        .measureText(text).width;
+      const textHeight = 24;
 
-    //   //TODO EMIT ONLY UPDATEDELEMENT IF DOESN'T WORK
-    //   emitElementUpdate(elementsCopy);
-    //   break;
+      elementsCopy[index] = {
+        ...createElement({
+          id,
+          x1,
+          y1,
+          x2: x1 + textWidth,
+          y2: y1 + textHeight,
+          toolType: type,
+          text,
+        }),
+      };
+
+      //TODO
+      // const updatedTextElement = elementsCopy[index];
+      store.dispatch(setElements(elementsCopy));
+      //TODO EMIT ONLY UPDATEDELEMENT IF DOESN'T WORK
+      emitElementUpdate(elementsCopy);
+      break;
+
     default:
       throw new Error('Something went wrong while updating element');
       break;
@@ -135,12 +137,12 @@ const drawPencilElement = (context, element) => {
   const myPath = new Path2D(pathData);
   context.fill(myPath);
 };
-// const drawTextElement = (context, element) => {
-//   //means text will render to right and bottom from x1,y1
-//   context.textBaseline = 'top';
-//   context.font = '24px sans-serif';
-//   context.fillText(element.text, element.x1, element.y1);
-// };
+const drawTextElement = (context, element) => {
+  //means text will render to right and bottom from x1,y1
+  context.textBaseline = 'top';
+  context.font = '24px sans-serif';
+  context.fillText(element.text, element.x1, element.y1);
+};
 
 export const drawElement = ({ roughCanvas, context, element }) => {
   switch (element.type) {
@@ -150,9 +152,9 @@ export const drawElement = ({ roughCanvas, context, element }) => {
     case toolTypes.PENCIL:
       drawPencilElement(context, element);
       break;
-    // case toolTypes.TEXT:
-    //   drawTextElement(context, element);
-    //   break;
+    case toolTypes.TEXT:
+      drawTextElement(context, element);
+      break;
     default:
       throw new Error('Something went wrong while drawing element');
       break;
