@@ -1,13 +1,12 @@
 import { io } from 'socket.io-client';
 
-import { SERVER_URL } from '../utils/serverUrl';
 import { store } from '../store/store';
 import { setElements, updateElement } from '../store/whiteboardSlice';
 
 export let socket;
 
 export const connectWithSocketServer = () => {
-  socket = io(SERVER_URL);
+  socket = io(process.env.REACT_APP_SERVER_URL);
 
   socket.on('connect', () => {
     console.log('connected to socket.io server');

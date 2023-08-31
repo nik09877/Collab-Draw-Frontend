@@ -11,6 +11,7 @@ import {
   getElementAtPosition as utilGetElementAtPosition,
   getCursorForPosition as utilGetCursorForPosition,
   getResizedCoordinates as utilGetResizedCoordinates,
+  updatePencilElementWhenMoving as utilUpdatePencilElementWhenMoving,
 } from '../../utils/utilFunctions';
 import { v4 as uuid } from 'uuid';
 import { updateElement } from '../../store/whiteboardSlice';
@@ -102,7 +103,8 @@ const Whiteboard = () => {
         if (
           element &&
           (element.type === toolTypes.RECTANGLE ||
-            element.type === toolTypes.TEXT)
+            element.type === toolTypes.TEXT ||
+            element.type === toolTypes.LINE)
         ) {
           setAction(
             element.position === cursorPositions.INSIDE
@@ -113,6 +115,14 @@ const Whiteboard = () => {
           const offsetY = clientY - element.y1;
 
           setSelectedElement({ ...element, offsetX, offsetY });
+        }
+        if (element && element.type === toolTypes.PENCIL) {
+          setAction(actions.MOVING);
+
+          const xOffsets = element.points.map((point) => clientX - point.x);
+          const yOffsets = element.points.map((point) => clientY - point.y);
+          //TODO ...elements
+          setSelectedElement({ ...element, xOffsets, yOffsets });
         }
         break;
       }
@@ -178,6 +188,21 @@ const Whiteboard = () => {
         : 'default';
     }
 
+    if (
+      toolType === toolTypes.SELECTION &&
+      action === actions.MOVING &&
+      selectedElement.type === toolTypes.PENCIL
+    ) {
+      const newPoints = selectedElement.points.map((_, index) => ({
+        x: clientX - selectedElement.xOffsets[index],
+        y: clientY - selectedElement.yOffsets[index],
+      }));
+      const index = elements.findIndex((el) => el.id === selectedElement.id);
+      if (index !== -1) {
+        utilUpdatePencilElementWhenMoving({ index, newPoints }, elements);
+      }
+      return;
+    }
     if (
       toolType === toolTypes.SELECTION &&
       action === actions.MOVING &&

@@ -132,6 +132,22 @@ export const updateElement = (
   }
 };
 
+export const updatePencilElementWhenMoving = (
+  { index, newPoints },
+  elements
+) => {
+  const elementsCopy = [...elements];
+
+  elementsCopy[index] = {
+    ...elementsCopy[index],
+    points: newPoints,
+  };
+
+  const updatedPencilElement = elementsCopy[index];
+  store.dispatch(setElements(elementsCopy));
+  emitElementUpdate(updatedPencilElement);
+};
+
 const drawPencilElement = (context, element) => {
   //draw using the points array present in the element
   const myStroke = getStroke(element.points, {
@@ -175,6 +191,19 @@ const nearPoint = (x, y, x1, y1, cursorPosition) => {
     ? cursorPosition
     : null;
 };
+const distance = (a, b) => {
+  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+};
+
+const onLine = ({ x1, y1, x2, y2, x, y, maxOffset = 1 }) => {
+  const a = { x: x1, y: y1 };
+  const b = { x: x2, y: y2 };
+  const c = { x, y };
+
+  const offset = distance(a, b) - (distance(a, c) + distance(b, c));
+  return Math.abs(offset) < maxOffset ? cursorPositions.INSIDE : null;
+};
+
 const positionWithinElement = (x, y, element) => {
   const { type, x1, y1, x2, y2 } = element;
   switch (type) {
@@ -189,10 +218,33 @@ const positionWithinElement = (x, y, element) => {
           : null;
       return topLeft || topRight || bottomLeft || bottomRight || inside;
     }
+
     case toolTypes.TEXT:
       return x >= x1 && x <= x2 && y >= y1 && y <= y2
         ? cursorPositions.INSIDE
         : null;
+
+    case toolTypes.LINE:
+      const on = onLine({ x1, y1, x2, y2, x, y });
+      const start = nearPoint(x, y, x1, y1, cursorPositions.START);
+      const end = nearPoint(x, y, x2, y2, cursorPositions.END);
+      return start || end || on;
+
+    case toolTypes.PENCIL:
+      const betweenAnyPoint = element.points.some((point, index) => {
+        const nextPoint = element.points[index + 1];
+        if (!nextPoint) return false;
+        return onLine({
+          x1: point.x,
+          y1: point.y,
+          x2: nextPoint.x,
+          y2: nextPoint.y,
+          x,
+          y,
+          maxOffset: 5,
+        });
+      });
+      return betweenAnyPoint ? cursorPositions.INSIDE : null;
     default:
       break;
   }
@@ -231,12 +283,14 @@ export const getResizedCoordinates = (
 ) => {
   const { x1, y1, x2, y2 } = coordinates;
   switch (position) {
+    case cursorPositions.START:
     case cursorPositions.TOP_LEFT:
       return { x1: clientX, y1: clientY, x2, y2 };
     case cursorPositions.TOP_RIGHT:
       return { x1, y1: clientY, x2: clientX, y2 };
     case cursorPositions.BOTTOM_LEFT:
       return { x1: clientX, y1, x2, y2: clientY };
+    case cursorPositions.END:
     case cursorPositions.BOTTOM_RIGHT:
       return { x1, y1, x2: clientX, y2: clientY };
     default:
