@@ -21,8 +21,8 @@ export const connectWithSocketServer = () => {
   ////listen to when server sends updated whiteboard state
   socket.on('element-update', (elementData) => {
     //TODO IF SOMETHING GOES WRONG UNCOMMENT THE BELOW LINE AND COMMENT THE NEXT TO BELOW LINE
-    // store.dispatch(updateElement(elementData));
-    store.dispatch(setElements(elementData));
+    store.dispatch(updateElement(elementData));
+    // store.dispatch(setElements(elementData));
   });
 
   socket.on('whiteboard-clear', () => {

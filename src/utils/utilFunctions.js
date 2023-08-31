@@ -1,5 +1,5 @@
 import rough from 'roughjs/bundled/rough.esm';
-import { toolTypes } from './constants';
+import { cursorPositions, toolTypes } from './constants';
 import { store } from '../store/store';
 import { setElements } from '../store/whiteboardSlice';
 import { emitElementUpdate } from '../socketConnection/socketConnection';
@@ -53,6 +53,8 @@ export const createElement = ({ x1, y1, x2, y2, toolType, id, text }) => {
         type: toolType,
         x1,
         y1,
+        x2,
+        y2,
         text: text || '',
       };
     default:
@@ -80,8 +82,8 @@ export const updateElement = (
       store.dispatch(setElements(elementsCopy));
       //TODO IF SOMETHING GOES WRONG UNCOMMENT THE BELOW LINE AND COMMENT THE NEXT TO BELOW LINE
       //emit update to server
-      // emitElementUpdate(updatedElement);
-      emitElementUpdate(elementsCopy);
+      emitElementUpdate(updatedElement);
+      // emitElementUpdate(elementsCopy);
       break;
 
     case toolTypes.PENCIL:
@@ -94,7 +96,8 @@ export const updateElement = (
       store.dispatch(setElements(elementsCopy));
 
       //TODO EMIT ONLY UPDATEDELEMENT IF DOESN'T WORK
-      emitElementUpdate(elementsCopy);
+      emitElementUpdate(elementsCopy[index]);
+      // emitElementUpdate(elementsCopy);
       break;
     case toolTypes.TEXT:
       const textWidth = document
@@ -119,7 +122,8 @@ export const updateElement = (
       // const updatedTextElement = elementsCopy[index];
       store.dispatch(setElements(elementsCopy));
       //TODO EMIT ONLY UPDATEDELEMENT IF DOESN'T WORK
-      emitElementUpdate(elementsCopy);
+      emitElementUpdate(elementsCopy[index]);
+      // emitElementUpdate(elementsCopy);
       break;
 
     default:
@@ -158,6 +162,85 @@ export const drawElement = ({ roughCanvas, context, element }) => {
     default:
       throw new Error('Something went wrong while drawing element');
       break;
+  }
+};
+
+//LOGIC FOR FINDING SELECTED ELEMENT
+const nearPoint = (x, y, x1, y1, cursorPosition) => {
+  const OFFSET = 5;
+  //EVEN IF USER DOESN'T EXACTLY POINT AT THE BOUNDARY
+  //OF ELEMENT WE NEED TO ADJUST IT TO NEAREST
+  //ELEMENT POINT
+  return Math.abs(x - x1) < OFFSET && Math.abs(y - y1) < OFFSET
+    ? cursorPosition
+    : null;
+};
+const positionWithinElement = (x, y, element) => {
+  const { type, x1, y1, x2, y2 } = element;
+  switch (type) {
+    case toolTypes.RECTANGLE: {
+      const topLeft = nearPoint(x, y, x1, y1, cursorPositions.TOP_LEFT);
+      const topRight = nearPoint(x, y, x2, y1, cursorPositions.TOP_RIGHT);
+      const bottomLeft = nearPoint(x, y, x1, y2, cursorPositions.BOTTOM_LEFT);
+      const bottomRight = nearPoint(x, y, x2, y2, cursorPositions.BOTTOM_RIGHT);
+      const inside =
+        x >= x1 && x <= x2 && y >= y1 && y <= y2
+          ? cursorPositions.INSIDE
+          : null;
+      return topLeft || topRight || bottomLeft || bottomRight || inside;
+    }
+    case toolTypes.TEXT:
+      return x >= x1 && x <= x2 && y >= y1 && y <= y2
+        ? cursorPositions.INSIDE
+        : null;
+    default:
+      break;
+  }
+};
+export const getElementAtPosition = (x, y, elements) => {
+  return elements
+    .map((el) => ({
+      ...el,
+      //check if point is inside this element or not
+      position: positionWithinElement(x, y, el),
+    }))
+    .find((el) => el.position !== null && el.position !== undefined);
+};
+
+export const getCursorForPosition = (cursorPosition) => {
+  switch (cursorPosition) {
+    case cursorPositions.TOP_LEFT:
+    case cursorPositions.BOTTOM_RIGHT:
+    case cursorPositions.START:
+    case cursorPositions.END:
+      return 'nwse-resize';
+    case cursorPositions.TOP_RIGHT:
+    case cursorPositions.BOTTOM_LEFT:
+      return 'nesw-resize';
+    default:
+      return 'move';
+  }
+};
+
+//LOGIC FOR RESIZING
+export const getResizedCoordinates = (
+  clientX,
+  clientY,
+  position,
+  coordinates
+) => {
+  const { x1, y1, x2, y2 } = coordinates;
+  switch (position) {
+    case cursorPositions.TOP_LEFT:
+      return { x1: clientX, y1: clientY, x2, y2 };
+    case cursorPositions.TOP_RIGHT:
+      return { x1, y1: clientY, x2: clientX, y2 };
+    case cursorPositions.BOTTOM_LEFT:
+      return { x1: clientX, y1, x2, y2: clientY };
+    case cursorPositions.BOTTOM_RIGHT:
+      return { x1, y1, x2: clientX, y2: clientY };
+    default:
+      return null;
   }
 };
 

@@ -1,13 +1,16 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm';
 import { useDispatch, useSelector } from 'react-redux';
-import { actions, toolTypes } from '../../utils/constants';
+import { actions, cursorPositions, toolTypes } from '../../utils/constants';
 import {
   drawElement as utilDrawElement,
   createElement as utilCreateElement,
   updateElement as utilUpdateElement,
   adjustmentRequired as utilAdjustmentRequired,
   adjustElementCoordinates as utilAdjustElementCoordinates,
+  getElementAtPosition as utilGetElementAtPosition,
+  getCursorForPosition as utilGetCursorForPosition,
+  getResizedCoordinates as utilGetResizedCoordinates,
 } from '../../utils/utilFunctions';
 import { v4 as uuid } from 'uuid';
 import { updateElement } from '../../store/whiteboardSlice';
@@ -55,35 +58,65 @@ const Whiteboard = () => {
       return;
     }
 
-    //CREATE DESIRED ELEMENT
-    const element = utilCreateElement({
-      x1: clientX,
-      y1: clientY,
-      x2: clientX,
-      y2: clientY,
-      toolType,
-      id: uuid(),
-    });
-
     switch (toolType) {
       case toolTypes.RECTANGLE:
       case toolTypes.LINE:
       case toolTypes.PENCIL: {
+        //CREATE DESIRED ELEMENT
+        const element = utilCreateElement({
+          x1: clientX,
+          y1: clientY,
+          x2: clientX,
+          y2: clientY,
+          toolType,
+          id: uuid(),
+        });
         setAction(actions.DRAWING);
+        //SET ELEMENT TO LATEST ELEMENT
+        setSelectedElement(element);
+        //STORE IT IN THE GLOBAL STATE IF NOT PRESENT
+        //OR ELSE UPDATE IT
+        dispatch(updateElement(element));
         break;
       }
       case toolTypes.TEXT: {
+        //CREATE DESIRED ELEMENT
+        const element = utilCreateElement({
+          x1: clientX,
+          y1: clientY,
+          x2: clientX,
+          y2: clientY,
+          toolType,
+          id: uuid(),
+        });
         setAction(actions.WRITING);
+        //SET ELEMENT TO LATEST ELEMENT
+        setSelectedElement(element);
+        //STORE IT IN THE GLOBAL STATE IF NOT PRESENT
+        //OR ELSE UPDATE IT
+        dispatch(updateElement(element));
+        break;
+      }
+      case toolTypes.SELECTION: {
+        const element = utilGetElementAtPosition(clientX, clientY, elements);
+        if (
+          element &&
+          (element.type === toolTypes.RECTANGLE ||
+            element.type === toolTypes.TEXT)
+        ) {
+          setAction(
+            element.position === cursorPositions.INSIDE
+              ? actions.MOVING
+              : actions.RESIZING
+          );
+          const offsetX = clientX - element.x1;
+          const offsetY = clientY - element.y1;
+
+          setSelectedElement({ ...element, offsetX, offsetY });
+        }
         break;
       }
     }
-
-    //SET ELEMENT TO LATEST ELEMENT
-    setSelectedElement(element);
-
-    //STORE IT IN THE GLOBAL STATE IF NOT PRESENT
-    //OR ELSE UPDATE IT
-    dispatch(updateElement(element));
   };
 
   const handleMouseUp = () => {
@@ -91,7 +124,7 @@ const Whiteboard = () => {
       (el) => el.id === selectedElement?.id
     );
     if (selectedElementIndex !== -1) {
-      if (action === actions.DRAWING) {
+      if (action === actions.DRAWING || action === actions.RESIZING) {
         //If type is RECTANGLE OR LINE AND USER IS DRAWING FROM BOTTOM TO TOP
         //SWAP THE COORDINATES
         if (utilAdjustmentRequired(elements[selectedElementIndex].type)) {
@@ -135,6 +168,63 @@ const Whiteboard = () => {
           },
           elements
         );
+      }
+    }
+
+    if (toolType === toolTypes.SELECTION) {
+      const element = utilGetElementAtPosition(clientX, clientY, elements);
+      event.target.style.cursor = element
+        ? utilGetCursorForPosition(element.position)
+        : 'default';
+    }
+
+    if (
+      toolType === toolTypes.SELECTION &&
+      action === actions.MOVING &&
+      selectedElement
+    ) {
+      const { id, x1, y1, x2, y2, type, offsetX, offsetY, text } =
+        selectedElement;
+      const width = x2 - x1;
+      const height = y2 - y1;
+
+      const newX1 = clientX - offsetX;
+      const newY1 = clientY - offsetY;
+
+      const index = elements.findIndex((el) => el.id === selectedElement.id);
+      if (index !== -1) {
+        utilUpdateElement(
+          {
+            id,
+            x1: newX1,
+            y1: newY1,
+            x2: newX1 + width,
+            y2: newY1 + height,
+            type,
+            index,
+            text,
+          },
+          elements
+        );
+      }
+    }
+
+    if (
+      toolType === toolTypes.SELECTION &&
+      action === actions.RESIZING &&
+      selectedElement
+    ) {
+      const { id, type, position, ...coordinates } = selectedElement;
+      const { x1, y1, x2, y2 } = utilGetResizedCoordinates(
+        clientX,
+        clientY,
+        position,
+        coordinates
+      );
+
+      const index = elements.findIndex((el) => el.id === selectedElement.id);
+      if (index !== -1) {
+        utilUpdateElement({ index, id, x1, x2, y1, y2, type }, elements);
       }
     }
   };
