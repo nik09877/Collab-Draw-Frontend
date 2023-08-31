@@ -10,8 +10,7 @@ import {
 export let socket;
 
 export const connectWithSocketServer = () => {
-  // socket = io(process.env.REACT_APP_SERVER_URL);
-  socket = io('https://collab-draw-backend.onrender.com/');
+  socket = io(process.env.REACT_APP_SERVER_URL);
 
   socket.on('connect', () => {
     console.log('connected to socket.io server');
