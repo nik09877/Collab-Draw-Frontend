@@ -17,9 +17,14 @@ import { v4 as uuid } from 'uuid';
 import { updateElement } from '../../store/whiteboardSlice';
 import {
   connectWithSocketServer,
+  emitCursorPosition,
   socket,
 } from '../../socketConnection/socketConnection';
 import Menu from './components/Menu.component';
+
+//no need to maintain their states
+let emitCursor = true;
+let lastCursorPosition;
 
 const Whiteboard = () => {
   const [action, setAction] = useState(null);
@@ -163,6 +168,18 @@ const Whiteboard = () => {
 
   const handleMouseMove = (event) => {
     const { clientX, clientY } = event;
+
+    //EMIT CURSOR POSITION TO OTHER CLIENTS
+    lastCursorPosition = { x: clientX, y: clientY };
+    if (emitCursor) {
+      emitCursorPosition({ x: clientX, y: clientY });
+      emitCursor = false;
+      setTimeout(() => {
+        emitCursor = true;
+        emitCursorPosition(lastCursorPosition);
+      }, 50);
+    }
+
     if (action === actions.DRAWING) {
       const index = elements.findIndex((el) => el.id === selectedElement.id);
       if (index !== -1) {

@@ -1,10 +1,12 @@
 import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit';
 import whiteboardReducer from './whiteboardSlice';
+import cursorSliceReducer from './cursorSlice';
 
 //STORE (GLOBAL STATE)
 export const store = configureStore({
   reducer: {
     whiteboard: whiteboardReducer,
+    cursor: cursorSliceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
